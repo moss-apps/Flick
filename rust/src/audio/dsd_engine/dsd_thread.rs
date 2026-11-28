@@ -46,7 +46,7 @@ impl DsdDecoderThread {
         output_channels: usize,
         start_position_secs: Option<f64>,
     ) -> Result<(AudioSource, Self)> {
-        let decoder = open_dsd_decoder(&path)?;
+        let mut decoder = open_dsd_decoder(&path)?;
 
         let dsd_rate = DsdRate::from_sample_rate(decoder.sample_rate())
             .ok_or_else(|| anyhow!("Unsupported DSD sample rate: {}", decoder.sample_rate()))?;
@@ -124,6 +124,11 @@ impl DsdDecoderThread {
             output_sample_rate,
         );
 
+        if let Some(position) = start_position_secs.filter(|&position| position > 0.0) {
+            let target_sample = (position * decoder.sample_rate() as f64) as u64;
+            decoder.seek(target_sample)?;
+        }
+
         let total_output_samples = if duration_secs > 0.0 {
             (duration_secs * output_sample_rate as f64 * output_channels as f64) as u64
         } else {
@@ -179,7 +184,6 @@ impl DsdDecoderThread {
                     source_channels,
                     pcm_chain,
                     stop_clone,
-                    start_position_secs,
                     channel_layout,
                     source_bit_order,
                 )
@@ -243,22 +247,9 @@ fn dsd_decode_thread(
     source_channels: usize,
     mut pcm_chain: Option<PcmOutputChain>,
     stop_signal: Arc<AtomicBool>,
-    start_position_secs: Option<f64>,
     channel_layout: DsdChannelLayout,
     _source_bit_order: DsdBitOrder,
 ) -> Result<()> {
-    if let Some(pos) = start_position_secs {
-        if pos > 0.0 {
-            let dsd_rate = decoder.sample_rate();
-            let target_sample = (pos * dsd_rate as f64) as u64;
-            if let Err(error) = decoder.seek(target_sample) {
-                producer.finish();
-                return Err(error);
-            }
-            output_router.reset();
-        }
-    }
-
     let read_size = match &channel_layout {
         DsdChannelLayout::SequentialBlocks { block_size } => {
             let aligned = block_size.checked_mul(source_channels).filter(|&size| size > 0);

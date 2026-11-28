@@ -69,6 +69,7 @@ class RustAudioService {
   Duration? _eventPollInterval;
   final Stopwatch _stateRefreshClock = Stopwatch();
   bool _initialized = false;
+  bool _outputReleased = false;
   bool _highResModeEnabled = false;
   BigInt? _acceptedPlaybackId;
   bool _repeatOne = false;
@@ -269,7 +270,7 @@ class RustAudioService {
     try {
       return await call();
     } catch (e) {
-      if (!_isDeadEngineError(e)) rethrow;
+      if (_outputReleased || !_isDeadEngineError(e)) rethrow;
       devLog(
         '[RustAudio] Command channel dead; respawning engine and retrying',
       );
@@ -312,7 +313,12 @@ class RustAudioService {
   bool get hasQueuedNext => _initialized && rust_audio.audioHasQueuedNext();
 
   /// Play an audio file.
-  Future<void> play(String path, {double? startSecs, double? endSecs}) async {
+  Future<void> play(
+    String path, {
+    double? startSecs,
+    double? endSecs,
+    double? positionSecs,
+  }) async {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
     }
@@ -324,11 +330,14 @@ class RustAudioService {
         path: path,
         startSecs: startSecs,
         endSecs: endSecs,
+        positionSecs: positionSecs,
       ),
     );
     _acceptedPlaybackId = source.playbackId;
+    _outputReleased = false;
     _startProgressUpdates(fast: true);
     _updateState();
+    _syncEventPolling();
   }
 
   /// Play a remote audio stream directly over HTTP (range-based, no cache
@@ -339,6 +348,7 @@ class RustAudioService {
     Map<String, String> headers = const {},
     double? startSecs,
     double? endSecs,
+    double? positionSecs,
   }) async {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
@@ -351,11 +361,14 @@ class RustAudioService {
         headers: headers,
         startSecs: startSecs,
         endSecs: endSecs,
+        positionSecs: positionSecs,
       ),
     );
     _acceptedPlaybackId = source.playbackId;
+    _outputReleased = false;
     _startProgressUpdates(fast: true);
     _updateState();
+    _syncEventPolling();
   }
 
   /// Enable/disable Repeat One at the native engine.
@@ -364,9 +377,7 @@ class RustAudioService {
   Future<void> setRepeatOne(bool enabled) async {
     _repeatOne = enabled;
     if (!_initialized) return;
-    await _reviveAndRetry(
-      () => rust_audio.audioSetRepeatOne(enabled: enabled),
-    );
+    await _reviveAndRetry(() => rust_audio.audioSetRepeatOne(enabled: enabled));
   }
 
   /// Queue the next track for gapless playback.
@@ -379,6 +390,7 @@ class RustAudioService {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
     }
+    if (_outputReleased) return;
     if (_repeatOne) {
       devLog('[repeat-one] ignoring queueNext while Repeat One is active');
       return;
@@ -405,6 +417,7 @@ class RustAudioService {
     if (!_initialized) {
       throw StateError('Rust audio engine not initialized');
     }
+    if (_outputReleased) return;
     if (_repeatOne) {
       devLog('[repeat-one] ignoring queueNextHttp while Repeat One is active');
       return;
@@ -616,6 +629,24 @@ class RustAudioService {
     return rust_audio.audioGetChannels()?.toInt();
   }
 
+  /// Close a paused USB stream without dropping the DAC registration.
+  Future<BigInt?> releaseEngine() async {
+    if (!_initialized || _outputReleased) return null;
+    final ticket = await rust_audio.audioReleasePausedUsbOutput();
+    if (ticket == null) return null;
+    _outputReleased = true;
+    _stopProgressUpdates();
+    _stopEventPolling();
+    _acceptedPlaybackId = null;
+    return ticket;
+  }
+
+  Future<void> armUsbIdleResume(BigInt ticket) =>
+      rust_audio.audioArmUsbIdleResume(ticket: ticket);
+
+  Future<void> finishUsbIdleResume(BigInt ticket, {required bool started}) =>
+      rust_audio.audioFinishUsbIdleResume(ticket: ticket, started: started);
+
   /// Shutdown the audio engine.
   Future<void> shutdown() async {
     if (!_initialized) return;
@@ -627,6 +658,7 @@ class RustAudioService {
       ..reset();
     await rust_audio.audioShutdown();
     _initialized = false;
+    _outputReleased = false;
     _acceptedPlaybackId = null;
   }
 
@@ -777,7 +809,7 @@ class RustAudioService {
 
   /// Reschedule event polling when the playback state changes cadence.
   void _syncEventPolling() {
-    if (!_initialized) return;
+    if (!_initialized || _outputReleased) return;
 
     final interval = eventPollIntervalForState(stateNotifier.value);
     if (_eventPollTimer != null && _eventPollInterval == interval) return;

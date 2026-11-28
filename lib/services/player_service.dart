@@ -571,6 +571,7 @@ class PlayerService {
     );
     _bindPlaybackState();
     _init();
+    _watchUsbIdleRelease();
   }
 
   /// Exercise route handoffs after launch without starting native engines.
@@ -593,6 +594,7 @@ class PlayerService {
     _playbackManager = playbackManager ?? AudioEngineManager();
     _audioInitialized = true;
     _androidEngine = androidAudioEngine;
+    _watchUsbIdleRelease();
   }
 
   just_audio.AudioPlayer? _justAudioPlayer;
@@ -789,6 +791,20 @@ class PlayerService {
 
   // Periodic health-check for hardware volume verification
   Timer? _hwVolumeHealthTimer;
+
+  /// How long a direct USB session stays paused before its isochronous stream
+  /// is closed. The DAC stays claimed by the native idle lock throughout.
+  @visibleForTesting
+  static const Duration usbIdleReleaseDelay = Duration(seconds: 30);
+  Timer? _usbIdleReleaseTimer;
+  _UsbIdlePause? _usbIdlePause;
+  _UsbIdlePause? _releasedUsbOutput;
+  bool _closingIdleUsbOutput = false;
+  bool _resumingIdleUsbOutput = false;
+
+  bool get _usbIdleReleased =>
+      _usingRustBackend && _rustEngine?.isOutputReleased == true;
+  bool get _usbIdleSuspended => _closingIdleUsbOutput || _usbIdleReleased;
 
   // State Notifiers
   final ValueNotifier<Song?> currentSongNotifier = _MutableValueNotifier(null);
@@ -1025,7 +1041,8 @@ class PlayerService {
     _lastActiveUsbPlayback = null;
     _usbReconnectBlocked = true;
     _usbPlaybackIntentRevision++;
-    if (_activeUsbReconnect != null) {
+    _cancelUsbIdleReleaseTimer();
+    if (_activeUsbReconnect != null || _resumingIdleUsbOutput) {
       // Keep the native guard armed, but stop an in-flight file/HTTP probe
       // from handing audio to the engine after the user cancels the resume.
       unawaited(_uac2Service.setAndroidUsbReconnectTarget(null, cancel: true));
@@ -1076,9 +1093,10 @@ class PlayerService {
         AudioEngineType.usbDacExperimental;
     final intent = _rememberDirectUsbPlayback();
     final generation = ++_usbConnectionGeneration;
+    _cancelUsbIdleReleaseTimer();
     _detachedDacVolumeGeneration = status?.hardwareVolumeGeneration;
     _syncDacVolumeKeys();
-    if (_activeUsbReconnect != null) {
+    if (_activeUsbReconnect != null || _resumingIdleUsbOutput) {
       unawaited(_uac2Service.setAndroidUsbReconnectTarget(null, cancel: true));
     }
     _usbAttachEngage = null;
@@ -1315,6 +1333,8 @@ class PlayerService {
   ///   to keep it in sync after status refreshes.
   void _mirrorUsbVolumeFromUac2Status(Uac2DeviceStatus? status) {
     _syncDacVolumeKeys();
+    if (_usbIdleSuspended) return;
+    _syncUsbIdleReleaseTimer();
     if (status == null) {
       _hwVolumeFailed = false;
       _hardwareVolumeGeneration = null;
@@ -1666,6 +1686,7 @@ class PlayerService {
 
   bool get _shouldQueueNextTrack =>
       _usingRustBackend &&
+      !_usbIdleSuspended &&
       !isBitPerfectModeEnabled &&
       (_isGaplessActive || _isCrossfadeActive);
 
@@ -2838,7 +2859,12 @@ class PlayerService {
   }
 
   Future<bool> _pauseUsbForVolumeSafety() async {
-    if (!_usingRustBackend || !_rustAudioService.isInitialized) return true;
+    // A released stream is already silent; there is no transport to pause.
+    if (_usbIdleSuspended ||
+        !_usingRustBackend ||
+        !_rustAudioService.isInitialized) {
+      return true;
+    }
     // Pause the transport, not PCM gain: this also protects raw DSD/DoP.
     try {
       await _rustAudioService.pause();
@@ -2866,6 +2892,7 @@ class PlayerService {
   Future<void> _setHardwareVolume(_HardwareVolumeRequest request) async {
     final (:volume, :route, :sliderCurve, :keyChange) = request;
     bool routeStillAcceptsWrite() =>
+        !_usbIdleSuspended &&
         _isCurrentVolumeRoute(route) &&
         (keyChange == null ||
             route.hardwareGeneration == _dacVolumeKeyGeneration);
@@ -2975,6 +3002,7 @@ class PlayerService {
   /// passthrough when the DAC has no hardware (UAC2 Feature Unit) volume —
   /// engine gain would corrupt the stream, so the slider must disable.
   bool get isVolumeAvailable =>
+      (!_usbIdleSuspended || _castingService.isActive) &&
       _determineCurrentTier() != VolumeTier.unavailable;
 
   /// True when the DAC hardware (Feature Unit) volume is the active volume
@@ -3060,6 +3088,12 @@ class PlayerService {
   }
 
   VolumeTier _determineCurrentTier({Song? song, AudioEngineType? playbackMode}) {
+    // The DAC's hardware control leaves with a released stream; keep the tier
+    // it had instead of reading that as lost volume authority.
+    if (_usbIdleSuspended &&
+        (playbackMode == null || playbackMode == currentEngineType)) {
+      return volumeTierNotifier.value;
+    }
     final mode = playbackMode ?? currentEngineType;
     if (mode == AudioEngineType.usbDacExperimental &&
         usbVolumeSafetyBlockedNotifier.value &&
@@ -3121,7 +3155,7 @@ class PlayerService {
     bool? passthroughActive,
   }) async {
     await _waitForPhysicalOutputVolumeGuard();
-    if (_physicalOutputVolumeSafetyBlocked) return;
+    if (_physicalOutputVolumeSafetyBlocked || _usbIdleSuspended) return;
     // Route callbacks can wait behind the output guard. Take their authority
     // from the current route, since a callback queued before the DAC was
     // ready may now be running after hardware volume has been verified.
@@ -3211,6 +3245,8 @@ class PlayerService {
     if (playbackMode != AudioEngineType.usbDacExperimental) {
       return;
     }
+    // A guarded idle resume verifies the physical level without restoring it.
+    if (_usbIdleSuspended) return;
     final generation = _usbDacVolumeRestore.connectionGeneration;
     await _uac2Service.refreshAndroidRouteStatus(
       isPlaying: isPlayingNotifier.value,
@@ -3677,6 +3713,7 @@ class PlayerService {
     Map<String, dynamic>? debugStateOverride,
   }) async {
     final generation = ++_audioOutputDiagnosticsGeneration;
+    final usbIdle = _usbIdleSuspended;
     final mode = currentEngineType;
     final activeEngineType = _playbackManager.activeEngineType ?? mode;
     final usesRustDiagnostics = activeEngineType.usesRustBackend;
@@ -3691,7 +3728,9 @@ class PlayerService {
             ? await _uac2Service.getAndroidPlaybackDebugState()
             : null);
     final rustAudioState = _mapValue(debugState?['rustAudioState']);
-    final engineState = _mapValue(rustAudioState?['engine']);
+    // No live stream can be verified while the idle output is released,
+    // including during a provisional reopen that has not accepted audio.
+    final engineState = usbIdle ? null : _mapValue(rustAudioState?['engine']);
     final directUsbState = _mapValue(rustAudioState?['direct_usb']);
     final dsdCallbackState = _mapValue(rustAudioState?['dsd_callback']);
     final managedOutputState = _mapValue(rustAudioState?['managed_output']);
@@ -3706,8 +3745,9 @@ class PlayerService {
     final engineConfiguredSampleRate = _intValue(
       engineState?['sample_rate'] ?? engineState?['sampleRate'],
     );
-    final outputStrategy =
-        _stringValue(
+    final outputStrategy = usbIdle
+        ? 'usb_idle'
+        : _stringValue(
           engineState?['output_strategy'] ?? engineState?['outputStrategy'],
         ) ??
         (outputSignature?.startsWith('android-uac2:') == true
@@ -3794,7 +3834,7 @@ class PlayerService {
         directUsbState?['idle_lock_held'] == true ||
         directUsbState?['stream_active'] == true;
     final usbStreamStable =
-        !directUsbTransportInterrupted &&
+        !usbIdle && !directUsbTransportInterrupted &&
         (directUsbState?['usb_stream_stable'] == true ||
             directUsbState?['usbStreamStable'] == true);
     final audioFocusHeld = debugState?['audioFocusHeld'] == true;
@@ -3804,7 +3844,7 @@ class PlayerService {
         deviceInfo.hasAttachedUac2Device ||
         deviceInfo.looksLikeUsbAudioRoute;
 
-    final pathManagement = directUsbActive
+    final pathManagement = directUsbActive || usbIdle
         ? AudioPathManagement.directUsbExperimental
         : !Platform.isAndroid || !usesRustDiagnostics
         ? AudioPathManagement.androidManagedShared
@@ -3838,12 +3878,14 @@ class PlayerService {
         enginePassthroughAllowed;
     // These checks describe the active configuration, clock and framing.
     // They are not an independent byte-for-byte comparison against the source.
-    final effectiveBitPerfect =
-        directUsbActive
+    final effectiveBitPerfect = !usbIdle &&
+        (directUsbActive
         ? (directUsbBitPerfectVerified && passthroughAllowed &&
             directUsbClockVerificationPassed && usbStreamStable && !resamplerActive)
-        : (usesRustDiagnostics && passthroughAllowed && !resamplerActive);
-    final verificationReason = directUsbTransportInterrupted
+        : (usesRustDiagnostics && passthroughAllowed && !resamplerActive));
+    final verificationReason = usbIdle
+        ? 'USB stream released while paused'
+        : directUsbTransportInterrupted
         ? directUsbLastError ?? 'USB transport interrupted or unverified'
         : (!usesRustDiagnostics ? null : engineVerificationReason) ??
               (pathManagement == AudioPathManagement.directUsbExperimental
@@ -3863,6 +3905,7 @@ class PlayerService {
             'mixer_bit_perfect' => 'Mixer bit-perfect',
             'mixer_matched' => 'Mixer matched',
             'usb_direct' => 'USB direct',
+            'usb_idle' => 'USB idle',
             'usb_dsd_native' => 'USB DSD native',
             'resampled_fallback' => 'Resampled fallback',
             _ => 'Adaptive',
@@ -3872,6 +3915,7 @@ class PlayerService {
         : switch (outputStrategy) {
             'usb_dsd_native' => 'Rust engine via USB direct native DSD',
             'usb_direct' => 'Rust engine via libusb direct USB',
+            'usb_idle' => 'USB DAC claimed, stream closed',
             'dsd_native' when passthroughAllowed =>
               'Rust engine via ENCODING_DSD AudioTrack (native DSD)',
             'dsd_native' => 'Rust engine via ENCODING_DSD AudioTrack',
@@ -3906,6 +3950,7 @@ class PlayerService {
               ? 'Android shared (USB route)'
               : 'Android shared')
         : switch (outputStrategy) {
+            'usb_idle' => 'USB paused (stream closed)',
             'usb_dsd_native' when effectiveBitPerfect =>
               'USB DSD native (clock/framing checked)',
             'usb_dsd_native' => 'USB DSD native',
@@ -3934,15 +3979,15 @@ class PlayerService {
         pathManagement == AudioPathManagement.directUsbExperimental
         ? directUsbDacClockPolicy
         : null;
-    final effectiveClockOk =
-        pathManagement == AudioPathManagement.directUsbExperimental
-        ? directUsbClockControlSucceeded
-        : usesRustDiagnostics && engineActualSampleRate != null;
+    final effectiveClockOk = !usbIdle &&
+        (pathManagement == AudioPathManagement.directUsbExperimental
+            ? directUsbClockControlSucceeded
+            : usesRustDiagnostics && engineActualSampleRate != null);
     final effectiveRateVerified =
-        pathManagement == AudioPathManagement.directUsbExperimental
-        ? directUsbClockVerificationPassed
-        : usesRustDiagnostics && engineRequestedSampleRate != null &&
-            engineRequestedSampleRate == engineActualSampleRate && !resamplerActive;
+        !usbIdle && (pathManagement == AudioPathManagement.directUsbExperimental
+            ? directUsbClockVerificationPassed
+            : usesRustDiagnostics && engineRequestedSampleRate != null &&
+                engineRequestedSampleRate == engineActualSampleRate && !resamplerActive);
 
     final capabilityFlags = AudioCapabilityFlags(
       supportsExclusiveUsbOwnership:
@@ -4035,7 +4080,7 @@ class PlayerService {
           directUsbState?['driftMsFromTarget'],
     );
     final urbTransport =
-        usesRustDiagnostics &&
+        !usbIdle && usesRustDiagnostics &&
             pathManagement == AudioPathManagement.directUsbExperimental
         ? UrbTransportInfo(
             activeAltSetting: activeAltSetting,
@@ -4066,14 +4111,16 @@ class PlayerService {
       return;
     }
 
-    _activeUsbDsdMode = directUsbActive ? dsdEffectiveMode : null;
-    _activeUsbDsdSongId = directUsbActive ? song?.id : null;
+    if (!usbIdle) {
+      _activeUsbDsdMode = directUsbActive ? dsdEffectiveMode : null;
+      _activeUsbDsdSongId = directUsbActive ? song?.id : null;
+    }
     final hardwareGeneration = _intValue(directUsbState?['hardware_volume_generation']);
     if (hardwareGeneration != _hardwareVolumeGeneration) {
       _hardwareVolumeGeneration = hardwareGeneration;
       _hwVolumeFailed = false;
     }
-    if (_isDirectUsbPath &&
+    if (!_usbIdleSuspended && _isDirectUsbPath &&
         _usbHardwareVolumeReadyFor != null &&
         hardwareGeneration != null &&
         hardwareGeneration != _usbHardwareVolumeCheckedGeneration) {
@@ -4382,7 +4429,7 @@ class PlayerService {
   void syncRustPlaybackStateForTesting() => _handleRustPlaybackStateChanged();
 
   void _handleRustPlaybackStateChanged() {
-    if (!_usingRustBackend) return;
+    if (!_usingRustBackend || _usbIdleSuspended) return;
 
     final rustState = _rustAudioService.stateNotifier.value;
     // The inactive state notification can arrive before the USB error.
@@ -4408,6 +4455,7 @@ class PlayerService {
       isPlayingNotifier.value = pipelineActive;
     }
     if (pipelineActive) _captureActiveDirectUsbPlayback();
+    _syncUsbIdleReleaseTimer();
 
     unawaited(
       _syncUac2PlaybackStatus(
@@ -4489,7 +4537,9 @@ class PlayerService {
       _debugLog('[PlayerService] Rust backend error: $message');
       // The in-flight direct-only attempt owns its startup failure. Do not
       // let the generic error listener queue a second recovery or fallback.
-      if (_activeUsbReconnect != null) return;
+      if (_activeUsbReconnect != null || _usbIdleSuspended || _resumingIdleUsbOutput) {
+        return;
+      }
       if (Platform.isAndroid &&
           !_midStreamUsbFallbackActive &&
           currentEngineType == AudioEngineType.usbDacExperimental &&
@@ -4843,7 +4893,7 @@ class PlayerService {
     if (loopModeNotifier.value == LoopMode.stopAfterCurrent) {
       _debugLog('_onSongFinished: stopAfterCurrent, pausing');
       await _pauseInternal();
-      await seek(Duration.zero);
+      await _seekInternal(Duration.zero);
       // Paused checkpoints no longer refresh this; persist the rewind
       // explicitly instead of leaving the end-of-track position saved.
       await _savePosition(position: Duration.zero);
@@ -4920,7 +4970,7 @@ class PlayerService {
 
     if (loopModeNotifier.value == LoopMode.stopAfterCurrent) {
       await _pauseInternal();
-      await seek(Duration.zero);
+      await _seekInternal(Duration.zero);
       await _savePosition(position: Duration.zero);
       return;
     }
@@ -4988,6 +5038,7 @@ class PlayerService {
   Future<void> _stopPlaybackInternal() async {
     _cancelUsbReconnect();
     _crossfadeUiHandoffFrom = null;
+    _cancelUsbIdleReleaseTimer();
     _stopPositionSaveTimer();
     await _savePosition();
     _clearReplayTracking();
@@ -4997,6 +5048,7 @@ class PlayerService {
     } catch (e) {
       _debugLog('Stop failed: $e');
     }
+    _releasedUsbOutput = null;
     isPlayingNotifier.value = false;
     _updatePriorityAnchor();
     if (currentEngineType != AudioEngineType.usbDacExperimental) {
@@ -5666,8 +5718,10 @@ class PlayerService {
   Future<void> _applyRustPlaybackProcessingPolicy(
     AudioEngineType playbackMode, {
     Song? song,
+    bool preparingIdleResume = false,
   }) async {
-    if (!_rustAudioService.isInitialized) {
+    if (!_rustAudioService.isInitialized ||
+        (_usbIdleSuspended && !preparingIdleResume)) {
       return;
     }
 
@@ -5680,7 +5734,9 @@ class PlayerService {
 
     // The incoming track may not be published by the engine yet. Decide its
     // volume authority before PCM/DSD playback, not from the outgoing song.
-    await _restoreUsbDacVolumeBeforePlayback(playbackMode, song: song);
+    if (!preparingIdleResume) {
+      await _restoreUsbDacVolumeBeforePlayback(playbackMode, song: song);
+    }
     final activeSong = song ?? currentSongNotifier.value;
     final usbDsdWireActive = activeSong != null &&
         _usbDsdWireForSong(activeSong, playbackMode: playbackMode);
@@ -5702,6 +5758,29 @@ class PlayerService {
       await _rustAudioService.setPipelineModePassthrough(false);
     }
 
+    Future<void> applyVolumePolicy({required bool passthroughActive}) async {
+      if (preparingIdleResume) {
+        // Restore DSP attenuation without writing a DAC Feature Unit or
+        // reinterpreting its temporarily unavailable volume authority.
+        final tier = volumeTierNotifier.value;
+        final base = !usbDsdWireActive && tier == VolumeTier.software
+            ? _currentVolume
+            : 1.0;
+        final duck = _isDucked && !usbDsdWireActive && !passthroughActive &&
+            tier != VolumeTier.unavailable;
+        await _rustAudioService.setVolume(duck
+            ? attenuateSoftwareVolume(base, _duckVolumeScale)
+            : base);
+        return;
+      }
+      await _reconcileVolumeForTier(
+        _determineCurrentTier(song: song, playbackMode: playbackMode),
+        usbDsdWireActive: usbDsdWireActive,
+        playbackMode: playbackMode,
+        passthroughActive: passthroughActive,
+      );
+    }
+
     if (bitPerfect) {
       await _rustAudioService.setCrossfade(
         enabled: false,
@@ -5711,21 +5790,11 @@ class PlayerService {
           playbackMode == AudioEngineType.dapInternalHighRes)) {
         await _rustAudioService.setPipelineModePassthrough(true);
       }
-      await _reconcileVolumeForTier(
-        _determineCurrentTier(song: song, playbackMode: playbackMode),
-        usbDsdWireActive: usbDsdWireActive,
-        playbackMode: playbackMode,
-        passthroughActive: !convertedUsbDsd,
-      );
+      await applyVolumePolicy(passthroughActive: !convertedUsbDsd);
       await _rustAudioService.setPlaybackSpeed(1.0);
       await _rustAudioService.setPitchShiftSemitones(0.0);
     } else if (playbackMode == AudioEngineType.usbDacExperimental) {
-      await _reconcileVolumeForTier(
-        _determineCurrentTier(song: song, playbackMode: playbackMode),
-        usbDsdWireActive: usbDsdWireActive,
-        playbackMode: playbackMode,
-        passthroughActive: false,
-      );
+      await applyVolumePolicy(passthroughActive: false);
       await _rustAudioService.setPlaybackSpeed(1.0);
       await _rustAudioService.setPitchShiftSemitones(0.0);
       await _rustAudioService.setCrossfade(
@@ -5766,7 +5835,9 @@ class PlayerService {
       await _rustAudioService.setCrossfadeCurve(curve);
     }
 
-    await reapplyEqualizer();
+    if (!preparingIdleResume || _rustAudioService.isNativeAvailable) {
+      await reapplyEqualizer();
+    }
     // Crossfeed is a headphone refinement for the Rust DSP path and has no
     // just_audio equivalent; it is suppressed whenever DSP is locked out
     // (bit-perfect passthrough, 432 Hz tuning).
@@ -5843,6 +5914,8 @@ class PlayerService {
   }
 
   Future<void> _disposeUsbEngine() async {
+    _cancelUsbIdleReleaseTimer();
+    _releasedUsbOutput = null;
     if (!_rustAudioService.isInitialized) return;
 
     _debugLog('[Engine] Disposing Rust engine');
@@ -5888,6 +5961,8 @@ class PlayerService {
     required bool initializeNewEngine,
     required String reason,
   }) async {
+    _cancelUsbIdleReleaseTimer();
+    _releasedUsbOutput = null;
     if (!initializeNewEngine) {
       await _playbackManager.detachEngine();
       _usingRustBackend = false;
@@ -6036,6 +6111,14 @@ class PlayerService {
       initializeNewEngine: true,
       reason: reason,
     );
+    // An explicit selection of a track uses the usual format/volume preflight,
+    // even when the existing Dart engine still owns a closed idle output.
+    if (preparedEngine == AudioEngineType.usbDacExperimental && _usbIdleReleased) {
+      final engine = _rustEngine!;
+      await _rustAudioService.prepareEngine();
+      engine.discardReleasedTrack();
+      _releasedUsbOutput = null;
+    }
     return preparedEngine;
   }
 
@@ -6163,7 +6246,7 @@ class PlayerService {
             _uac2Service.lastKnownFormat ??
             trackFormat;
         final needsDirectUsbPrewarm =
-            alreadyInUsbMode &&
+            alreadyInUsbMode && !_usbIdleReleased &&
             !_sameUac2Format(currentUsbFormat, preparedUsbFormat);
         if (needsDirectUsbPrewarm && _rustAudioService.isInitialized) {
           _debugLog(
@@ -6806,6 +6889,7 @@ class PlayerService {
       if (wasPlaying) {
         await _savePosition();
       }
+      _syncUsbIdleReleaseTimer();
     }
   }
 
@@ -6839,6 +6923,10 @@ class PlayerService {
       return true;
     }
     if (!requestIsCurrent()) return false;
+    if (_usbIdleReleased && _releasedUsbOutput != null &&
+        reconnect == null && requestedMode == null) {
+      return _resumeUsbEngineFromIdle(requestIsCurrent);
+    }
     await initAudio();
     await _ensurePhysicalOutputVolumeBeforePlayback();
 
@@ -6913,6 +7001,11 @@ class PlayerService {
       }
     }
 
+    await _finishPlaybackResume(song);
+    return true;
+  }
+
+  Future<void> _finishPlaybackResume(Song song) async {
     _ensurePositionSaveTimer();
     // A resume only loads the current track. Without a successor queued the
     // first transition hard-cuts and can never crossfade, so mirror the
@@ -6927,7 +7020,161 @@ class PlayerService {
       reason: 'playback resumed',
       activeSong: song,
     );
-    return true;
+  }
+
+  // ==================== Direct USB idle release ====================
+
+  void _watchUsbIdleRelease() {
+    isPlayingNotifier.addListener(_syncUsbIdleReleaseTimer);
+    currentSongNotifier.addListener(_syncUsbIdleReleaseTimer);
+    audioOutputDiagnosticsNotifier.addListener(_syncUsbIdleReleaseTimer);
+    selectedPlaybackModeNotifier.addListener(_syncUsbIdleReleaseTimer);
+    _castingService.isActiveNotifier.addListener(_syncUsbIdleReleaseTimer);
+  }
+
+  bool _hasIdleUsbRoute(_UsbIdlePause pause) {
+    final status = _uac2Service.currentDeviceStatus;
+    return identical(_rustEngine, pause.engine) &&
+        _usingRustBackend &&
+        !_castingService.isActive &&
+        _sessionManager.initializedMode == AudioEngineType.usbDacExperimental &&
+        _sessionManager.selectedMode == AudioEngineType.usbDacExperimental &&
+        pause.connection == _usbConnectionGeneration &&
+        pause.engine.loadedTrackId == pause.song.id &&
+        currentSongNotifier.value?.id == pause.song.id &&
+        status?.directUsbRegistered == true &&
+        _sameUsbVolumeDevice(pause.device, status?.device);
+  }
+
+  bool get _canCountUsbIdlePause =>
+      !_usbIdleSuspended &&
+      !isPlayingNotifier.value &&
+      !usbVolumeSafetyBlockedNotifier.value &&
+      !_physicalOutputVolumeSafetyBlocked &&
+      _rustAudioService.stateNotifier.value == RustPlaybackState.paused &&
+      audioOutputDiagnosticsNotifier.value?.pathManagement ==
+          AudioPathManagement.directUsbExperimental;
+
+  void _syncUsbIdleReleaseTimer() {
+    final previous = _usbIdlePause;
+    if (_canCountUsbIdlePause && previous != null && _hasIdleUsbRoute(previous)) {
+      return;
+    }
+    _cancelUsbIdleReleaseTimer();
+    if (!_canCountUsbIdlePause) return;
+    final song = currentSongNotifier.value;
+    final engine = _rustEngine;
+    final device = _uac2Service.currentDeviceStatus?.device;
+    if (song == null || engine == null || device == null) return;
+    final pause = _UsbIdlePause(song, engine, device, _usbConnectionGeneration);
+    if (!_hasIdleUsbRoute(pause)) return;
+    _usbIdlePause = pause;
+    _usbIdleReleaseTimer = Timer(usbIdleReleaseDelay, () {
+      unawaited(_enqueuePlaybackRequest(() => _releaseUsbEngineForIdle(pause)));
+    });
+  }
+
+  void _cancelUsbIdleReleaseTimer() {
+    _usbIdleReleaseTimer?.cancel();
+    _usbIdleReleaseTimer = null;
+    _usbIdlePause = null;
+  }
+
+  Future<void> _releaseUsbEngineForIdle(
+    _UsbIdlePause pause, {
+    bool retryIfBusy = true,
+  }) async {
+    if (!identical(pause, _usbIdlePause)) return;
+    if (!_canCountUsbIdlePause || !_hasIdleUsbRoute(pause)) {
+      _cancelUsbIdleReleaseTimer();
+      return;
+    }
+    _closingIdleUsbOutput = true;
+    _audioOutputDiagnosticsGeneration++;
+    _stopHwVolumeHealthTimer();
+    _syncDacVolumeKeys();
+    try {
+      if (!await pause.engine.releaseOutput()) {
+        if (retryIfBusy && identical(pause, _usbIdlePause)) {
+          // A volume readback can briefly hold the native release guard.
+          _usbIdleReleaseTimer = Timer(const Duration(seconds: 1), () {
+            unawaited(_enqueuePlaybackRequest(
+              () => _releaseUsbEngineForIdle(pause, retryIfBusy: false),
+            ));
+          });
+        }
+        return;
+      }
+      _releasedUsbOutput = pause;
+      _cancelUsbIdleReleaseTimer();
+      const message =
+          '[Engine] Direct USB stream released while paused; DAC still claimed';
+      _debugLog(message);
+      AppLog.instance.add(message);
+      await _refreshAudioOutputDiagnostics(
+        reason: 'USB idle release',
+        activeSong: pause.song,
+      );
+    } catch (error) {
+      _debugLog('[Engine] Direct USB idle release failed: $error');
+    } finally {
+      _closingIdleUsbOutput = false;
+      _syncDacVolumeKeys();
+      if (!_usbIdleReleased && volumeTierNotifier.value == VolumeTier.hardware) {
+        _startHwVolumeHealthTimer();
+      }
+    }
+  }
+
+  Future<bool> _resumeUsbEngineFromIdle(bool Function() requestIsCurrent) async {
+    final pause = _releasedUsbOutput;
+    if (pause == null) return false;
+    final intent = _usbPlaybackIntentRevision;
+    bool isCurrent() =>
+        intent == _usbPlaybackIntentRevision &&
+        requestIsCurrent() &&
+        _hasIdleUsbRoute(pause) &&
+        !usbVolumeSafetyBlockedNotifier.value &&
+        !_physicalOutputVolumeSafetyBlocked;
+
+    if (!isCurrent()) return false;
+    _resumingIdleUsbOutput = true;
+    try {
+      final started = await pause.engine.resumeReleasedOutput(
+        isCurrent: isCurrent,
+        prepare: () async {
+          await _rustAudioService.prepareEngine();
+          if (!isCurrent()) return;
+          await _applyRustPlaybackProcessingPolicy(
+            AudioEngineType.usbDacExperimental,
+            song: pause.song,
+            preparingIdleResume: true,
+          );
+          await _refreshReplayGainForSong(pause.song, pushSpawnDefault: true);
+        },
+      );
+      if (!started) return false;
+      _releasedUsbOutput = null;
+      if (!isCurrent()) {
+        await pause.engine.pause();
+        return false;
+      }
+      _usbReconnectBlocked = false;
+      _handleRustPlaybackStateChanged();
+      if (volumeTierNotifier.value == VolumeTier.hardware) {
+        _startHwVolumeHealthTimer();
+      }
+      await _finishPlaybackResume(pause.song);
+      return true;
+    } catch (error) {
+      // A failed idle resume is deliberately not eligible for a managed route.
+      _debugLog('[Engine] Direct USB idle resume refused: $error');
+      AppLog.instance.add('[Engine] USB idle resume refused; playback stayed paused');
+      return false;
+    } finally {
+      _resumingIdleUsbOutput = false;
+      _syncDacVolumeKeys();
+    }
   }
 
   bool _isDirectUsbStartupRefusal(String message) {
@@ -7259,7 +7506,10 @@ class PlayerService {
     });
   }
 
-  Future<void> seek(Duration position) async {
+  Future<void> seek(Duration position) =>
+      _enqueuePlaybackRequest(() => _seekInternal(position));
+
+  Future<void> _seekInternal(Duration position) async {
     if (_castingService.isActive) {
       await _castingService.delegateSeek(position);
       return;
@@ -7365,7 +7615,7 @@ class PlayerService {
     }
 
     if (allowRestart && positionNotifier.value.inSeconds > 3) {
-      await seek(Duration.zero);
+      await _seekInternal(Duration.zero);
       return;
     }
 
@@ -7382,7 +7632,7 @@ class PlayerService {
       return;
     }
 
-    await seek(Duration.zero);
+    await _seekInternal(Duration.zero);
   }
 
   // ========== Carousel peek helpers (Poweramp-style swipe) ==========
@@ -7688,6 +7938,7 @@ class PlayerService {
     await _waitForPhysicalOutputVolumeGuard();
     if (!volume.isFinite ||
         _switchingDsdForVolume ||
+        (_usbIdleSuspended && !route.casting && _isDirectUsbPath) ||
         !_isCurrentVolumeRoute(route)) {
       return;
     }
@@ -7787,7 +8038,7 @@ class PlayerService {
   int? get _dacVolumeKeyGeneration {
     final status = _uac2Service.currentDeviceStatus;
     final generation = status?.hardwareVolumeGeneration;
-    if (_dacVolumeKeysDisposed ||
+    if (_dacVolumeKeysDisposed || _usbIdleSuspended ||
         generation == null ||
         generation == _detachedDacVolumeGeneration ||
         status?.directUsbRegistered != true ||
@@ -8293,6 +8544,12 @@ class PlayerService {
 
   Future<void> setPlaybackSpeed(double speed) async {
     final clampedSpeed = speed.clamp(0.5, 2.0).toDouble();
+    if (_usbIdleSuspended) {
+      if (!isBitPerfectProcessingLocked) {
+        playbackSpeedNotifier.value = clampedSpeed;
+      }
+      return;
+    }
     if (isBitPerfectProcessingLocked) {
       _debugLog(
         '[Playback] Ignoring playback-speed change while Bit-perfect (USB DAC) is enabled',
@@ -8329,6 +8586,10 @@ class PlayerService {
 
   Future<void> setPitchSemitones(double semitones) async {
     final clamped = semitones.clamp(-12.0, 12.0).toDouble();
+    if (_usbIdleSuspended) {
+      if (!isBitPerfectProcessingLocked) pitchSemitonesNotifier.value = clamped;
+      return;
+    }
     debugPrint(
       '[PITCH] setPitchSemitones($semitones) -> clamped=$clamped, '
       'usingRustBackend=$_usingRustBackend, '
@@ -8510,6 +8771,31 @@ class PlayerService {
   bool get isPositionSaveTimerRunning => _positionSaveTimer?.isActive ?? false;
 
   @visibleForTesting
+  bool get isUsbIdleReleaseTimerArmed =>
+      _usbIdleReleaseTimer?.isActive ?? false;
+
+  @visibleForTesting
+  bool get isUsbEngineIdleReleased => _usbIdleReleased;
+
+  @visibleForTesting
+  void attachRustEngineForTesting(RustAudioEngine engine) =>
+      _rustEngine = engine;
+
+  @visibleForTesting
+  void watchUsbDacDisconnectsForTesting() => _initUsbDacDisconnectHandling();
+
+  @visibleForTesting
+  Future<void> stopPlaybackForTesting() => _stopPlaybackInternal();
+
+  @visibleForTesting
+  Future<void> detachEngineForTesting() => _handleEngineSwitch(
+    from: currentEngineType,
+    to: AudioEngineType.normalAndroid,
+    initializeNewEngine: false,
+    reason: 'test',
+  );
+
+  @visibleForTesting
   void startPositionSaveTimerForTesting() => _ensurePositionSaveTimer();
 
   @visibleForTesting
@@ -8562,6 +8848,7 @@ class PlayerService {
     // Route snapshots can arrive faster than the interval. Reconciliation must
     // not continually postpone the next hardware readback.
     if (_hwVolumeHealthTimer?.isActive ?? false) return;
+    if (_usbIdleSuspended) return;
     _hwVolumeHealthTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _checkHwVolumeHealth(),
@@ -8574,12 +8861,13 @@ class PlayerService {
   }
 
   Future<void> _checkHwVolumeHealth() async {
-    if (volumeTierNotifier.value != VolumeTier.hardware) return;
+    if (_usbIdleSuspended || volumeTierNotifier.value != VolumeTier.hardware) return;
     final device = _uac2Service.currentDeviceStatus?.device;
     final generation = _usbDacVolumeRestore.connectionGeneration;
     final revision = _usbHardwareVolumeRevision;
     final healthy = await _uac2Service.verifyHardwareVolumeHealth();
-    if (generation != _usbDacVolumeRestore.connectionGeneration ||
+    if (_usbIdleSuspended ||
+        generation != _usbDacVolumeRestore.connectionGeneration ||
         revision != _usbHardwareVolumeRevision ||
         !_sameUsbVolumeDevice(device, _uac2Service.currentDeviceStatus?.device)) {
       return;
@@ -8616,6 +8904,7 @@ class PlayerService {
     _queueDebounceTimer?.cancel();
     _stopPositionSaveTimer();
     _stopHwVolumeHealthTimer();
+    _cancelUsbIdleReleaseTimer();
     unawaited(_audioFocusSubscription?.cancel());
     unawaited(_bluetoothDeviceEventSubscription?.cancel());
     unawaited(_usbDacDetachSubscription?.cancel());
@@ -8623,7 +8912,7 @@ class PlayerService {
     cancelSleepTimer();
     _notificationService.hideNotification();
     _floatingPlayerService.hide();
-    if (_usingRustBackend) {
+    if (_usingRustBackend && !_usbIdleReleased) {
       if (Uac2PreferencesService.isKillIsochronousUsbOnQuitSync) {
         unawaited(_rustAudioService.stop());
       }
@@ -8639,6 +8928,8 @@ class PlayerService {
     selectedPlaybackModeNotifier.removeListener(
       _updateBitPerfectProcessingLocked,
     );
+    selectedPlaybackModeNotifier.removeListener(_syncUsbIdleReleaseTimer);
+    audioOutputDiagnosticsNotifier.removeListener(_syncUsbIdleReleaseTimer);
     initializedPlaybackModeNotifier.removeListener(
       _updateBitPerfectProcessingLocked,
     );
@@ -8656,6 +8947,7 @@ class PlayerService {
         _bitPerfectLockedListener!,
       );
     }
+    _castingService.isActiveNotifier.removeListener(_syncUsbIdleReleaseTimer);
     _castingService.isActiveNotifier.removeListener(_syncDacVolumeKeys);
     _castingService.remoteVolumeNotifier.removeListener(_onRemoteVolumeChanged);
     _sessionManager.initializedModeNotifier.removeListener(_syncDacVolumeKeys);
@@ -8765,7 +9057,7 @@ class PlayerService {
       }
     }
     await _pauseInternal();
-    await seek(Duration.zero);
+    await _seekInternal(Duration.zero);
     await _savePosition(position: Duration.zero);
   }
 
@@ -9065,6 +9357,15 @@ class PlayerService {
 
 typedef _UsbReconnectAttempt =
     ({Uac2DeviceInfo device, bool Function() isCurrent});
+
+class _UsbIdlePause {
+  const _UsbIdlePause(this.song, this.engine, this.device, this.connection);
+
+  final Song song;
+  final RustAudioEngine engine;
+  final Uac2DeviceInfo device;
+  final int connection;
+}
 
 class _UsbReconnectIntent {
   const _UsbReconnectIntent({

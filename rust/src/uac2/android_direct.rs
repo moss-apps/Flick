@@ -589,8 +589,40 @@ struct AndroidDirectUsbState {
     hardware_volume_normalized: Option<f64>,
     hardware_mute_active: Option<bool>,
     pending_hardware_volume_restore: Option<f64>,
+    idle_resume: Option<UsbIdleResume>,
     packet_schedule_frames_preview: Vec<u32>,
     runtime_stats: Option<Arc<AndroidDirectUsbRuntimeStats>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct UsbIdleResume {
+    ticket: u64,
+    format: AndroidDirectUsbPlaybackFormat,
+    interface_number: u8,
+    alt_setting: u8,
+    hardware_volume: Option<(i16, Option<bool>)>,
+}
+
+impl UsbIdleResume {
+    fn matches_transport(
+        self,
+        format: AndroidDirectUsbPlaybackFormat,
+        interface_number: u8,
+        alt_setting: u8,
+    ) -> bool {
+        self.format == format
+            && self.interface_number == interface_number
+            && self.alt_setting == alt_setting
+    }
+
+    fn matches_stream(self, state: &AndroidDirectUsbState) -> bool {
+        state.stream_active
+            && state.playback_format.is_some_and(|format| {
+                state.active_transport.as_ref().is_some_and(|transport| {
+                    self.matches_transport(format, transport.interface_number, transport.alt_setting)
+                })
+            })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1903,6 +1935,146 @@ pub fn is_usb_session_active() -> bool {
     USB_SESSION_ACTIVE.load(Ordering::SeqCst)
 }
 
+pub(crate) fn capture_usb_idle_resume() -> Result<Option<u64>, String> {
+    let Some(_volume_hold) = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.try_lock() else {
+        return Ok(None);
+    };
+    let Some(state) = DIRECT_USB_STATE.lock().clone() else {
+        return Ok(None);
+    };
+    if !state.stream_active
+        || !state.lock_requested
+        || state.pending_hardware_volume_restore.is_some()
+        || !is_usb_session_active()
+        || USB_SESSION_CLEAR_PENDING.load(Ordering::SeqCst)
+        || USB_STOP_REQUESTED.load(Ordering::SeqCst)
+    {
+        return Ok(None);
+    }
+    let (Some(format), Some(transport)) = (state.playback_format, &state.active_transport) else {
+        return Ok(None);
+    };
+    let hardware_volume = if let Some(control) = &state.hardware_volume_control {
+        let snapshot = refresh_android_usb_hardware_volume_snapshot(&state.device, control)?;
+        if control.mute_channel.is_some() && snapshot.muted.is_none() {
+            return Ok(None);
+        }
+        Some((snapshot.raw, snapshot.muted))
+    } else {
+        None
+    };
+    let mut current = DIRECT_USB_STATE.lock();
+    let Some(current) = current.as_mut().filter(|current| {
+        current.stream_active
+            && volume_generation_is_current(current, state.hardware_volume_generation)
+    }) else {
+        return Ok(None);
+    };
+    let ticket = HARDWARE_VOLUME_GENERATION.fetch_add(1, Ordering::Relaxed);
+    current.idle_resume = Some(UsbIdleResume {
+        ticket,
+        format,
+        interface_number: transport.interface_number,
+        alt_setting: transport.alt_setting,
+        hardware_volume,
+    });
+    Ok(Some(ticket))
+}
+
+pub(crate) fn owns_usb_idle_resume(ticket: u64) -> bool {
+    !USB_SESSION_CLEAR_PENDING.load(Ordering::SeqCst)
+        && DIRECT_USB_STATE.lock().as_ref().is_some_and(|state| {
+            state.lock_requested && state.idle_resume.is_some_and(|idle| idle.ticket == ticket)
+        })
+}
+
+pub(crate) fn has_usb_idle_resume() -> bool {
+    DIRECT_USB_STATE
+        .lock()
+        .as_ref()
+        .is_some_and(|state| state.idle_resume.is_some())
+}
+
+pub(crate) fn forget_usb_idle_resume(ticket: u64) {
+    if let Some(state) = DIRECT_USB_STATE
+        .lock()
+        .as_mut()
+        .filter(|state| state.idle_resume.is_some_and(|idle| idle.ticket == ticket))
+    {
+        state.idle_resume = None;
+        state.pending_hardware_volume_restore = None;
+    }
+}
+
+pub(crate) fn with_live_usb_idle_resume<T>(
+    ticket: u64,
+    start: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let Some(_volume_hold) = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.try_lock() else {
+        return Err("USB idle resume could not verify hardware volume while it was changing".into());
+    };
+    let state = DIRECT_USB_STATE
+        .lock()
+        .clone()
+        .ok_or("USB idle resume no longer owns the expected DAC")?;
+    let idle = state
+        .idle_resume
+        .filter(|idle| idle.ticket == ticket && idle.matches_stream(&state))
+        .ok_or("USB idle resume did not reopen the original DAC and format")?;
+
+    match (idle.hardware_volume, state.hardware_volume_control.as_ref()) {
+        (None, None) => {}
+        (Some((raw, muted)), Some(control)) => {
+            let snapshot = refresh_android_usb_hardware_volume_snapshot(&state.device, control)?;
+            if !idle_volume_is_safe(raw, muted, &snapshot) {
+                return Err("USB idle resume refused a louder or unverified DAC level".into());
+            }
+        }
+        _ => {
+            return Err("USB idle resume could not verify the original hardware volume control".into())
+        }
+    }
+
+    let _gate = USB_SESSION_GATE.lock();
+    if !is_usb_session_active()
+        || USB_STOP_REQUESTED.load(Ordering::SeqCst)
+        || !owns_usb_idle_resume(ticket)
+        || !DIRECT_USB_STATE
+            .lock()
+            .as_ref()
+            .is_some_and(|current| {
+                current.hardware_volume_generation == state.hardware_volume_generation
+                    && idle.matches_stream(current)
+            })
+    {
+        return Err("USB idle resume no longer owns the expected DAC".into());
+    }
+    start()
+}
+
+fn idle_volume_is_safe(raw: i16, muted: Option<bool>, snapshot: &HardwareVolumeSnapshot) -> bool {
+    snapshot.raw <= raw
+        && (muted.is_none() || snapshot.muted.is_some())
+        && (muted != Some(true) || snapshot.muted == Some(true))
+}
+
+#[cfg(test)]
+#[test]
+fn idle_resume_requires_no_increase_in_raw_volume_or_unmute() {
+    let snapshot = |raw, muted| HardwareVolumeSnapshot {
+        raw,
+        // Equal normalized values must not mask a different raw step.
+        volume: 0.0,
+        muted,
+        mute_error: None,
+    };
+    assert!(idle_volume_is_safe(-1000, None, &snapshot(-1000, None)));
+    assert!(idle_volume_is_safe(-1000, Some(true), &snapshot(-1024, Some(true))));
+    assert!(!idle_volume_is_safe(-1000, None, &snapshot(-999, None)));
+    assert!(!idle_volume_is_safe(-1000, Some(true), &snapshot(-1024, Some(false))));
+    assert!(!idle_volume_is_safe(-1000, Some(false), &snapshot(-1024, None)));
+}
+
 pub(crate) fn with_live_usb_reconnect<T>(
     expected_device: &str,
     start: impl FnOnce() -> Result<T, String>,
@@ -2016,6 +2188,7 @@ pub fn register_android_usb_device(device: AndroidDirectUsbDevice) -> Result<(),
         hardware_volume_normalized: None,
         hardware_mute_active: None,
         pending_hardware_volume_restore: None,
+        idle_resume: None,
         packet_schedule_frames_preview: Vec::new(),
         runtime_stats: None,
     });
@@ -4198,6 +4371,9 @@ fn set_android_usb_hardware_volume_for_state(
     volume: f64,
     slider_curve: bool,
 ) -> Result<(), String> {
+    if state.idle_resume.is_some() {
+        return Err("USB volume is held until idle playback resumes".into());
+    }
     let control = state
         .hardware_volume_control
         .clone()
@@ -4308,6 +4484,9 @@ fn apply_android_usb_hardware_mute(
 pub fn android_direct_set_hardware_mute(muted: bool, generation: u64) -> Result<(), String> {
     let _hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
     let state = hardware_volume_state(generation)?;
+    if state.idle_resume.is_some() {
+        return Err("USB mute is held until idle playback resumes".into());
+    }
     let control = state
         .hardware_volume_control
         .as_ref()
@@ -4544,6 +4723,15 @@ fn create_android_usb_backend_inner(
     mut preferred_sample_rate: u32,
     session: &Arc<AndroidUsbSessionGuard>,
 ) -> Result<Option<AndroidDirectUsbBackend>, String> {
+    // An idle resume is read-only, even if a restore was staged while the
+    // stream was closed. Refuse a new registration before configuring it.
+    #[cfg(target_os = "android")]
+    let idle_ticket = crate::api::audio_api::armed_usb_idle_resume();
+    #[cfg(not(target_os = "android"))]
+    let idle_ticket: Option<u64> = None;
+    if idle_ticket.is_some_and(|ticket| !owns_usb_idle_resume(ticket)) {
+        return Err("USB idle resume no longer owns the expected DAC".into());
+    }
     // Some buggy DACs report 0 Hz via GET_CUR, and Dart passes this as
     // preferred_sample_rate = 0. Use the requested playback format's rate
     // instead of 0, which would cause a 0 == 0 format match and select a
@@ -4703,6 +4891,19 @@ fn create_android_usb_backend_inner(
             current.requested_playback_format = Some(requested_playback_format);
         }
     }
+    if idle_ticket.is_some_and(|ticket| {
+        !state.idle_resume.is_some_and(|idle| {
+            idle.ticket == ticket
+                && idle.matches_transport(
+                    playback_format,
+                    candidate.interface_number,
+                    candidate.alt_setting,
+                )
+        })
+    }) {
+        cleanup_claimed_handle(claimed_handle, None, lock_requested);
+        return Err("USB idle resume did not reopen the original DAC and format".into());
+    }
     let clock = find_audio_control_clock(&device, &claimed_handle.handle, candidate.terminal_link);
     let clock_detection_msg = match &clock {
         Some(c) => format!(
@@ -4721,6 +4922,12 @@ fn create_android_usb_backend_inner(
     set_usb_stream_stable(false);
     set_active_transport(Some(&candidate));
     let volume_hold = ANDROID_DIRECT_HARDWARE_VOLUME_MUTEX.lock();
+    if idle_ticket.is_none() {
+        // An explicit new track uses the usual volume preflight.
+        if let Some(current) = DIRECT_USB_STATE.lock().as_mut() {
+            current.idle_resume = None;
+        }
+    }
     let hardware_volume_control = discover_android_usb_hardware_volume_control(
         &device,
         &state.device,
@@ -4757,7 +4964,11 @@ fn create_android_usb_backend_inner(
             .lock()
             .as_mut()
             .map(|state| (
-                state.pending_hardware_volume_restore.take(),
+                if idle_ticket.is_none() {
+                    state.pending_hardware_volume_restore.take()
+                } else {
+                    None
+                },
                 state.hardware_volume_generation,
             ))
             .unwrap_or_default();
@@ -4832,8 +5043,10 @@ fn create_android_usb_backend_inner(
         }
     } else {
         log_info!("[USB] No hardware volume control discovered");
-        if let Some(state) = DIRECT_USB_STATE.lock().as_mut() {
-            state.pending_hardware_volume_restore.take();
+        if idle_ticket.is_none() {
+            if let Some(state) = DIRECT_USB_STATE.lock().as_mut() {
+                state.pending_hardware_volume_restore.take();
+            }
         }
     }
     drop(volume_hold);
@@ -9667,6 +9880,7 @@ mod transport_loss_tests {
             hardware_volume_normalized: None,
             hardware_mute_active: None,
             pending_hardware_volume_restore: None,
+            idle_resume: None,
             packet_schedule_frames_preview: Vec::new(),
             runtime_stats: Some(runtime_stats),
         }

@@ -13,7 +13,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'audio_api.freezed.dart';
 
-// These functions are ignored because they are not marked as `pub`: `clear_dsd_context_if_generation`, `clear_dsd_context_locked`, `decide_queue_plan`, `dsd_callback_debug_json`, `effective_dsd_output_mode_for_rate_and_channels`, `ensure_audio_engine_excluded`, `ensure_audio_engine`, `lock_dsd_context`, `managed_output_debug_json`, `plan_track_engine_config`, `playback_range_for_path`, `prepare_decoder_source`, `queue_compatible_with_engine`, `read_audio_engine`, `record_dsd_native_failure`, `resolve_dsd_engine_sample_rate`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `verify_dop_passthrough`, `verify_dsd_engine_rate`, `wait_for_native_completion`, `wait_for_play_start`, `with_audio_engine`
+// These functions are ignored because they are not marked as `pub`: `clear_dsd_context_if_generation`, `clear_dsd_context_locked`, `decide_queue_plan`, `dsd_callback_debug_json`, `effective_dsd_output_mode_for_rate_and_channels`, `ensure_audio_engine_excluded`, `ensure_audio_engine`, `lock_dsd_context`, `managed_output_debug_json`, `plan_track_engine_config`, `playback_range_for_path`, `prepare_decoder_source`, `queue_compatible_with_engine`, `read_audio_engine`, `record_dsd_native_failure`, `resolve_dsd_engine_sample_rate`, `resolve_requested_output_sample_rate`, `resolve_track_playback_output_sample_rate`, `validate_play_position`, `verify_dop_passthrough`, `verify_dsd_engine_rate`, `wait_for_native_completion`, `wait_for_play_start`, `with_audio_engine`, `with_usb_reconnect_guard`
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `QueuePlanDecision`, `TrackEnginePlan`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_fields_are_eq`, `assert_fields_are_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`
 
@@ -225,15 +225,36 @@ Future<void> audioPrepareEngine({int? preferredSampleRate}) =>
 Future<AudioProbeFormat> audioProbeFormat({required String path}) =>
     RustLib.instance.api.crateApiAudioApiAudioProbeFormat(path: path);
 
-/// Play an audio file, optionally restricted to a CUE track.
+/// Release a genuinely paused direct USB output, keeping the registered DAC.
+/// Returns a ticket that cannot be reused after USB registration changes.
+Future<BigInt?> audioReleasePausedUsbOutput() =>
+    RustLib.instance.api.crateApiAudioApiAudioReleasePausedUsbOutput();
+
+/// Guard the next play through both engine negotiation and decoder startup.
+Future<void> audioArmUsbIdleResume({required BigInt ticket}) =>
+    RustLib.instance.api.crateApiAudioApiAudioArmUsbIdleResume(ticket: ticket);
+
+/// Close a failed reopen without releasing the DAC. A successful play retires
+/// the ticket; cancellation remains armed until any provisional output closes.
+Future<void> audioFinishUsbIdleResume({
+  required BigInt ticket,
+  required bool started,
+}) => RustLib.instance.api.crateApiAudioApiAudioFinishUsbIdleResume(
+  ticket: ticket,
+  started: started,
+);
+
+/// Play an audio file from an optional position relative to its CUE range.
 Future<SourceIdentity> audioPlay({
   required String path,
   double? startSecs,
   double? endSecs,
+  double? positionSecs,
 }) => RustLib.instance.api.crateApiAudioApiAudioPlay(
   path: path,
   startSecs: startSecs,
   endSecs: endSecs,
+  positionSecs: positionSecs,
 );
 
 /// Queue the next track for gapless playback.
@@ -256,11 +277,13 @@ Future<SourceIdentity> audioPlayFromHttp({
   required Map<String, String> headers,
   double? startSecs,
   double? endSecs,
+  double? positionSecs,
 }) => RustLib.instance.api.crateApiAudioApiAudioPlayFromHttp(
   url: url,
   headers: headers,
   startSecs: startSecs,
   endSecs: endSecs,
+  positionSecs: positionSecs,
 );
 
 /// Queue a remote HTTP stream as the next track for gapless playback.

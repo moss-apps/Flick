@@ -20,18 +20,50 @@ class FakeRustAudioService implements RustAudioService {
 
   final plays = <PlayCall>[];
   final httpPlays = <PlayCall>[];
+  final playPositions = <double?>[];
+  final idleResumeResults = <bool>[];
   final seeks = <Duration>[];
   final seekPlayAttempts = <int>[];
   @override
   String? currentPath;
   bool failHttp = false;
   bool failPlay = false;
+  bool releaseRefused = false;
   int resumes = 0;
+  int pauses = 0;
+  int stops = 0;
+  int releases = 0;
   int _activePlayAttempt = 0;
 
   @override
   Future<void> pause() async {
+    pauses++;
     stateNotifier.value = RustPlaybackState.paused;
+  }
+
+  @override
+  Future<void> stop() async {
+    stops++;
+    stateNotifier.value = RustPlaybackState.stopped;
+  }
+
+  @override
+  Future<BigInt?> releaseEngine() async {
+    releases++;
+    if (releaseRefused) return null;
+    stateNotifier.value = RustPlaybackState.idle;
+    return BigInt.from(releases);
+  }
+
+  @override
+  Future<void> armUsbIdleResume(BigInt ticket) async {}
+
+  @override
+  Future<void> finishUsbIdleResume(
+    BigInt ticket, {
+    required bool started,
+  }) async {
+    idleResumeResults.add(started);
   }
 
   @override
@@ -41,8 +73,14 @@ class FakeRustAudioService implements RustAudioService {
   }
 
   @override
-  Future<void> play(String path, {double? startSecs, double? endSecs}) async {
+  Future<void> play(
+    String path, {
+    double? startSecs,
+    double? endSecs,
+    double? positionSecs,
+  }) async {
     plays.add((path: path, start: startSecs, end: endSecs));
+    playPositions.add(positionSecs);
     if (failPlay) throw StateError('Play unavailable');
     currentPath = path;
     _activePlayAttempt = plays.length + httpPlays.length;
@@ -55,8 +93,10 @@ class FakeRustAudioService implements RustAudioService {
     Map<String, String> headers = const {},
     double? startSecs,
     double? endSecs,
+    double? positionSecs,
   }) async {
     httpPlays.add((path: url, start: startSecs, end: endSecs));
+    playPositions.add(positionSecs);
     if (failHttp) throw StateError('HTTP unavailable');
     _activePlayAttempt = plays.length + httpPlays.length;
     stateNotifier.value = RustPlaybackState.playing;
@@ -235,31 +275,163 @@ void main() {
     await subscription.cancel();
   });
 
-  test('failed play keeps the previous track visible and retry succeeds', () async {
-    final states = <PlaybackState>[];
-    final subscription = engine.playbackStateStream.listen(states.add);
-    final first = track();
-    final second = track(start: 13000, end: 31000);
-    await engine.load(first);
-    await engine.play();
-    await Future<void>.delayed(Duration.zero);
-    expect(states.last.currentTrack?.id, first.id);
+  test(
+    'failed play keeps the previous track visible and retry succeeds',
+    () async {
+      final states = <PlaybackState>[];
+      final subscription = engine.playbackStateStream.listen(states.add);
+      final first = track();
+      final second = track(start: 13000, end: 31000);
+      await engine.load(first);
+      await engine.play();
+      await Future<void>.delayed(Duration.zero);
+      expect(states.last.currentTrack?.id, first.id);
 
-    service.failPlay = true;
-    await engine.load(second);
-    await expectLater(engine.play(), throwsStateError);
-    await Future<void>.delayed(Duration.zero);
-    expect(states.last.currentTrack?.id, first.id);
-    expect(states.last.isPlaying, isTrue);
-    expect(states.last.duration, first.duration);
+      service.failPlay = true;
+      await engine.load(second);
+      await expectLater(engine.play(), throwsStateError);
+      await Future<void>.delayed(Duration.zero);
+      expect(states.last.currentTrack?.id, first.id);
+      expect(states.last.isPlaying, isTrue);
+      expect(states.last.duration, first.duration);
 
-    service.failPlay = false;
-    await engine.play();
-    await Future<void>.delayed(Duration.zero);
-    expect(states.last.currentTrack?.id, second.id);
-    expect(states.last.isPlaying, isTrue);
-    expect(service.plays, hasLength(3));
-    await subscription.cancel();
+      service.failPlay = false;
+      await engine.play();
+      await Future<void>.delayed(Duration.zero);
+      expect(states.last.currentTrack?.id, second.id);
+      expect(states.last.isPlaying, isTrue);
+      expect(service.plays, hasLength(3));
+      await subscription.cancel();
+    },
+  );
+
+  group('released output', () {
+    Future<void> pausedAt(Duration position, {Song? song}) async {
+      await engine.load(song ?? track());
+      await engine.play();
+      service.positionNotifier.value = position;
+      await engine.pause();
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    Future<bool> resume({Future<void> Function()? prepare}) =>
+        engine.resumeReleasedOutput(
+          prepare: prepare ?? () async {},
+          isCurrent: () => true,
+        );
+
+    test(
+      'reopens a CUE track directly at its relative paused position',
+      () async {
+        await pausedAt(
+          const Duration(seconds: 7),
+          song: track(start: 13000, end: 31000),
+        );
+        final states = <PlaybackState>[];
+        final subscription = engine.playbackStateStream.listen(states.add);
+
+        expect(await engine.releaseOutput(), isTrue);
+        expect(engine.isOutputReleased, isTrue);
+        expect(service.releases, 1);
+        expect(service.resumes, 0);
+
+        await expectLater(engine.play(), throwsStateError);
+        expect(await resume(), isTrue);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(service.resumes, 0);
+        expect(service.plays, hasLength(2));
+        expect(service.plays.last.start, 13.0);
+        expect(service.plays.last.end, 31.0);
+        expect(service.playPositions, [null, 7.0]);
+        expect(service.seeks, isEmpty);
+        expect(engine.isOutputReleased, isFalse);
+        expect(states.last.isPlaying, isTrue);
+        expect(states.last.position, const Duration(seconds: 7));
+        await subscription.cancel();
+      },
+    );
+
+    test('seek only stages the position and never reaches native', () async {
+      await pausedAt(const Duration(seconds: 7));
+      await engine.releaseOutput();
+      final states = <PlaybackState>[];
+      final subscription = engine.playbackStateStream.listen(states.add);
+
+      await engine.seek(const Duration(seconds: 12));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(service.seeks, isEmpty);
+      expect(service.plays, hasLength(1));
+      expect(engine.isOutputReleased, isTrue);
+      expect(states.last.position, const Duration(seconds: 12));
+      expect(states.last.isPlaying, isFalse);
+
+      expect(await resume(), isTrue);
+      expect(service.playPositions, [null, 12.0]);
+      expect(service.seeks, isEmpty);
+      await subscription.cancel();
+    });
+
+    test('pause and stop do not reach the missing native engine', () async {
+      await pausedAt(const Duration(seconds: 7));
+      await engine.releaseOutput();
+      final pauses = service.pauses;
+
+      await engine.pause();
+      await engine.stop();
+
+      expect(service.pauses, pauses);
+      expect(service.stops, 0);
+      expect(await resume(), isFalse);
+    });
+
+    test(
+      'a refused release leaves the existing paused engine resumable',
+      () async {
+        expect(await engine.releaseOutput(), isFalse);
+        expect(service.releases, 0);
+
+        await pausedAt(const Duration(seconds: 7));
+        service.releaseRefused = true;
+        expect(await engine.releaseOutput(), isFalse);
+        expect(engine.isOutputReleased, isFalse);
+        await engine.play();
+        expect(service.resumes, 1);
+      },
+    );
+
+    test(
+      'a failed reopen closes the attempt and retains the seek for retry',
+      () async {
+        await pausedAt(const Duration(seconds: 7));
+        expect(await engine.releaseOutput(), isTrue);
+        await engine.seek(const Duration(seconds: 9));
+        expect(await engine.releaseOutput(), isFalse);
+        expect(service.releases, 1);
+        service.failPlay = true;
+        await expectLater(resume(), throwsStateError);
+        expect(engine.isOutputReleased, isTrue);
+        service.failPlay = false;
+        expect(await resume(), isTrue);
+        expect(service.idleResumeResults, [false, true]);
+        expect(service.playPositions, [null, 9.0, 9.0]);
+        expect(service.seeks, isEmpty);
+      },
+    );
+
+    test('loading another track ends the released state', () async {
+      await pausedAt(const Duration(seconds: 7));
+      await engine.releaseOutput();
+
+      await engine.load(track(start: 13000, end: 31000));
+      expect(engine.isOutputReleased, isFalse);
+      await engine.seek(const Duration(seconds: 3)); // Deferred, as before.
+      await engine.play();
+
+      expect(service.plays.last.start, 13.0);
+      expect(service.seeks, [const Duration(seconds: 3)]);
+    });
   });
 
   group('managed audio focus', () {

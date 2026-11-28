@@ -416,7 +416,7 @@ impl DecoderThread {
 
     /// Spawn a decoder thread using a probe result that has already been created.
     pub fn spawn_from_probe_result(
-        probe_result: ProbeResult,
+        mut probe_result: ProbeResult,
         output_sample_rate: u32,
         output_channels: usize,
         start_position_secs: Option<f64>,
@@ -459,6 +459,24 @@ impl DecoderThread {
             end_frame
         };
 
+        // Resolve the starting packet before accepting a prepared play. A
+        // failed file/HTTP seek must return an error without starting audio.
+        let current_frame = if decode_start > 0 && decode_end.is_none_or(|end| decode_start < end) {
+            let seek_to = SeekTo::Time {
+                time: Time::try_from_secs_f64(decode_start as f64 / source_rate as f64)
+                    .ok_or_else(|| DecoderError::DecodingFailed("Invalid seek time".into()))?,
+                track_id: Some(probe_result.track_id),
+            };
+            let seeked = probe_result
+                .format
+                .seek(SeekMode::Accurate, seek_to)
+                .map_err(|error| DecoderError::DecodingFailed(format!("Seek failed: {error}")))?;
+            probe_result.decoder.reset();
+            timestamp_to_frame(seeked.actual_ts, probe_result.time_base, source_rate)
+        } else {
+            0
+        };
+
         // Create the source and producer
         let (source, producer) = AudioSource::new(source_info);
         source.set_position_secs(position_secs);
@@ -477,6 +495,7 @@ impl DecoderThread {
                     stop_signal_clone,
                     decode_start,
                     decode_end,
+                    current_frame,
                 )
             })
             .map_err(|e| DecoderError::IoError(e.into()))?;
@@ -544,6 +563,7 @@ fn decode_thread(
     stop_signal: Arc<AtomicBool>,
     start_frame: u64,
     end_frame: Option<u64>,
+    mut current_frame: u64,
 ) -> Result<(), DecoderError> {
     let ProbeResult {
         source_info,
@@ -557,25 +577,6 @@ fn decode_thread(
         producer.finish();
         return Ok(());
     }
-    let mut current_frame = 0;
-    if start_frame > 0 {
-        let target_secs = start_frame as f64 / source_info.original_sample_rate as f64;
-        let seek_to = SeekTo::Time {
-            time: Time::try_from_secs_f64(target_secs).unwrap_or(Time::ZERO),
-            track_id: Some(track_id),
-        };
-
-        let seeked = format
-            .seek(SeekMode::Accurate, seek_to)
-            .map_err(|e| DecoderError::DecodingFailed(format!("Seek failed: {}", e)))?;
-        current_frame = timestamp_to_frame(
-            seeked.actual_ts,
-            time_base,
-            source_info.original_sample_rate,
-        );
-        decoder.reset();
-    }
-
     let source_channels = source_info.channels;
 
     // Create resampler if needed

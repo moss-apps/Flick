@@ -157,6 +157,14 @@ impl WavpackDecoderThread {
             0.0
         };
 
+        if let Some(position) = start_position_secs.filter(|&position| position > 0.0) {
+            let sample = (position * file_sample_rate as f64) as i64;
+            if unsafe { WavpackSeekSample64(context, sample) } == 0 {
+                unsafe { WavpackCloseFile(context) };
+                return Err(anyhow!("WavPack seek to sample {} failed", sample));
+            }
+        }
+
         let source_info = SourceInfo {
             path: path.clone(),
             range: crate::audio::source::PlaybackRange::default(),
@@ -179,10 +187,6 @@ impl WavpackDecoderThread {
         let stop_signal = Arc::new(AtomicBool::new(false));
         let stop_clone = Arc::clone(&stop_signal);
 
-        let seek_sample = start_position_secs
-            .filter(|&p| p > 0.0)
-            .map(|p| (p * file_sample_rate as f64) as i64);
-
         let send_ctx = SendContext(context);
         let handle = thread::Builder::new()
             .name(format!("wavpack-pcm-{}", path.display()))
@@ -198,7 +202,6 @@ impl WavpackDecoderThread {
                     bits_per_sample,
                     is_float,
                     stop_clone,
-                    seek_sample,
                 )
             })
             .map_err(|e| anyhow!("Failed to spawn WavPack PCM thread: {}", e))?;
@@ -251,19 +254,8 @@ fn wavpack_pcm_decode_thread(
     bits_per_sample: usize,
     is_float: bool,
     stop_signal: Arc<AtomicBool>,
-    seek_sample: Option<i64>,
 ) -> Result<()> {
     let context = ctx.0;
-    if let Some(sample) = seek_sample {
-        let result = unsafe { WavpackSeekSample64(context, sample) };
-        if result == 0 {
-            log::warn!(
-                "[WV-PCM] Seek to sample {} failed, starting from beginning",
-                sample
-            );
-            unsafe { WavpackSeekSample64(context, 0) };
-        }
-    }
 
     let needs_resampling = file_sample_rate != output_sample_rate;
     let needs_remix = file_channels != output_channels;
