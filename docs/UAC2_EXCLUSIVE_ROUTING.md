@@ -38,12 +38,22 @@ saved preferences alone do not take ownership of the DAC.
 
 ## Playback controls
 
-Pause keeps the USB stream and DAC clock running with format-correct silence.
+For short pauses, Flick keeps the USB stream and DAC clock running with
+format-correct silence.
 Already submitted USB transfers finish, but Flick holds the rest of the buffer
 for resume. Buffered PCM uses the current software volume when sent to the DAC,
 including a volume change made while paused. Seek discards audio from the old
 position and sends silence until the new decoder can supply audio. Intentional
 silence does not count as an underrun, and transport errors still count.
+
+After 30 seconds of continuous pause, Flick drains the transfers and stops the
+stream while keeping the DAC claimed. The DAC can lose its clock lock during
+this time. The song and position are retained, and seeking while paused only
+updates the position. DAC volume controls are unavailable while the stream is
+closed. On Play, Flick reopens the same DAC and checks the previous output
+format and hardware level before starting the decoder at the saved position.
+This check does not write gain or mute to the DAC. If the route or volume
+cannot be verified, playback stays paused.
 
 ## Hardware volume
 
@@ -91,7 +101,10 @@ disconnect** is disabled and no DAC is present.
 3. Play 48 and 96 kHz PCM, a 16-bit track, and a higher rate such as 192 or
    384 kHz if the DAC supports it. Check quick and long pauses, then seek while
    playing and while paused. Listen for old audio after the seek and confirm
-   the DAC stays locked. With PCM software volume, lower it while paused and
+   the DAC stays locked during a short pause. Leave a track paused for over
+   30 seconds, check that the stream is closed, then seek without waking it.
+   Play and listen for the first audio at the new position at the same level.
+   With PCM software volume, lower it during a short pause and
    check the first audio after resume. If the DAC supports hardware volume,
    adjust it at a safe level during playback. Check the displayed readback,
    try hardware mute if supported, and listen for interruptions. Repeat after

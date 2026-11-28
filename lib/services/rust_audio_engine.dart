@@ -56,9 +56,24 @@ class RustAudioEngine implements AudioEngine {
   bool _initialized = false;
   Future<void>? _initInFlight;
   bool _needsFreshPlay = false;
+  bool _releasingOutput = false;
+  BigInt? _idleResumeTicket;
 
   @override
   Stream<PlaybackState> get playbackStateStream => _controller.stream;
+
+  /// Whether native output is closed while the loaded track and position are
+  /// kept for a guarded USB resume.
+  bool get isOutputReleased => _idleResumeTicket != null;
+
+  String? get loadedTrackId => _loadedTrack?.id;
+
+  void discardReleasedTrack() {
+    if (!isOutputReleased) return;
+    _idleResumeTicket = null;
+    _loadedTrack = null;
+    _pendingSeekPosition = null;
+  }
 
   Future<void> _safeEnsureInitialized() async {
     if (_initialized) return;
@@ -88,6 +103,7 @@ class RustAudioEngine implements AudioEngine {
     }
 
     addListener(_rustAudioService.stateNotifier, () {
+      if (_releasingOutput || isOutputReleased) return;
       final rustState = _rustAudioService.stateNotifier.value;
       final isPlaying =
           rustState == RustPlaybackState.playing ||
@@ -97,6 +113,7 @@ class RustAudioEngine implements AudioEngine {
     });
 
     addListener(_rustAudioService.positionNotifier, () {
+      if (_releasingOutput || isOutputReleased) return;
       _emit(
         _state.copyWith(position: _rustAudioService.positionNotifier.value),
       );
@@ -104,6 +121,7 @@ class RustAudioEngine implements AudioEngine {
     });
 
     addListener(_rustAudioService.durationNotifier, () {
+      if (_releasingOutput || isOutputReleased) return;
       _emit(
         _state.copyWith(duration: _rustAudioService.durationNotifier.value),
       );
@@ -114,6 +132,7 @@ class RustAudioEngine implements AudioEngine {
   }
 
   void _syncBufferedFromLevel() {
+    if (_releasingOutput || isOutputReleased) return;
     final level = _rustAudioService.bufferLevelNotifier.value.clamp(0.0, 1.0);
     final duration = _state.duration;
     if (duration == Duration.zero) return;
@@ -135,6 +154,7 @@ class RustAudioEngine implements AudioEngine {
     _attachListeners();
     _loadedTrack = track;
     _needsFreshPlay = true;
+    _idleResumeTicket = null;
     _pendingSeekPosition = Duration.zero;
     // Do not publish the selection here. `play()` can still fail (dead engine,
     // refused route, unreadable source); until the native engine accepts the
@@ -144,12 +164,12 @@ class RustAudioEngine implements AudioEngine {
   }
 
   /// Publish a track only after the native engine has accepted the play.
-  void _emitAcceptedTrack(Song track) {
+  void _emitAcceptedTrack(Song track, {Duration position = Duration.zero}) {
     _emit(
       _state.copyWith(
         currentTrack: track,
         isPlaying: true,
-        position: Duration.zero,
+        position: position,
         bufferedPosition: Duration.zero,
         duration: track.duration,
       ),
@@ -158,6 +178,49 @@ class RustAudioEngine implements AudioEngine {
 
   @override
   Future<void> play() async {
+    if (isOutputReleased) {
+      throw StateError('Released USB output requires a guarded resume');
+    }
+    await _play();
+  }
+
+  Future<bool> resumeReleasedOutput({
+    required Future<void> Function() prepare,
+    required bool Function() isCurrent,
+  }) async {
+    final ticket = _idleResumeTicket;
+    if (ticket == null || _loadedTrack == null || !isCurrent()) return false;
+    await _rustAudioService.armUsbIdleResume(ticket);
+    var started = false;
+    try {
+      if (!isCurrent()) return false;
+      await prepare();
+      if (!isCurrent()) return false;
+      started = await _play(
+        initialPosition: _pendingSeekPosition ?? _state.position,
+        isCurrent: isCurrent,
+      );
+      if (started) _idleResumeTicket = null;
+      return started;
+    } finally {
+      await _rustAudioService.finishUsbIdleResume(ticket, started: started);
+    }
+  }
+
+  Future<bool> _play({
+    Duration? initialPosition,
+    bool Function()? isCurrent,
+  }) async {
+    final positionSecs = initialPosition == null
+        ? null
+        : initialPosition.inMicroseconds / Duration.microsecondsPerSecond;
+    void checkCanStart() {
+      _checkCanStartPlayback();
+      if (isCurrent?.call() == false) {
+        throw StateError('USB idle resume was cancelled');
+      }
+    }
+
     await _safeEnsureInitialized();
     _attachListeners();
     final track = _loadedTrack;
@@ -172,16 +235,18 @@ class RustAudioEngine implements AudioEngine {
     // Focus belongs to playback, not engine creation: a paused engine is often
     // reused, and prewarming one must not take audio away from another device.
     final requestAudioFocus = _requestAudioFocus;
-    if (requestAudioFocus != null && !await requestAudioFocus()) return;
-    _checkCanStartPlayback();
+    if (requestAudioFocus != null && !await requestAudioFocus()) return false;
+    checkCanStart();
     if (track == null) {
       await _rustAudioService.resume();
       _emit(_state.copyWith(isPlaying: true));
-      return;
+      return true;
     }
 
     final rustState = _rustAudioService.stateNotifier.value;
-    if (rustState == RustPlaybackState.paused && !_needsFreshPlay) {
+    if (initialPosition == null &&
+        rustState == RustPlaybackState.paused &&
+        !_needsFreshPlay) {
       await _rustAudioService.resume();
       // The Rust state notifier may already report playing (e.g. switching
       // tracks without an intervening pause), so its listener will not fire.
@@ -193,7 +258,7 @@ class RustAudioEngine implements AudioEngine {
         await _rustAudioService.seek(pendingSeek);
       }
       _pendingSeekPosition = null;
-      return;
+      return true;
     }
 
     // ponytail: HTTP-first for network sources. Try a direct ranged stream; on
@@ -207,7 +272,7 @@ class RustAudioEngine implements AudioEngine {
         final http = await httpResolver(track);
         if (http != null) {
           try {
-            _checkCanStartPlayback();
+            checkCanStart();
             await _rustAudioService.playHttp(
               url: http.url,
               headers: http.headers,
@@ -217,13 +282,10 @@ class RustAudioEngine implements AudioEngine {
               endSecs: track.endOffsetMs == null
                   ? null
                   : track.endOffsetMs! / 1000,
+              positionSecs: positionSecs,
             );
-            // A track switch while already playing leaves the Rust state
-            // notifier unchanged, so sync the engine's UI state explicitly.
-            _needsFreshPlay = false;
-            _emitAcceptedTrack(track);
-            await _applyInitialSeekAfterStart();
-            return;
+            await _acceptPlay(track, initialPosition);
+            return true;
           } catch (e) {
             debugPrint(
               '[RustAudioEngine] HTTP direct play failed, falling back to cache: $e',
@@ -235,9 +297,9 @@ class RustAudioEngine implements AudioEngine {
       }
     }
 
-    _checkCanStartPlayback();
+    checkCanStart();
     final path = await _resolvePlaybackPath(track);
-    _checkCanStartPlayback();
+    checkCanStart();
     if (path == null || path.isEmpty) {
       final sourcePath = track.filePath ?? '';
       final scheme = Uri.tryParse(sourcePath)?.scheme ?? '';
@@ -253,12 +315,22 @@ class RustAudioEngine implements AudioEngine {
           ? null
           : track.startOffsetMs! / 1000,
       endSecs: track.endOffsetMs == null ? null : track.endOffsetMs! / 1000,
+      positionSecs: positionSecs,
     );
-    // See the HTTP path above: switching tracks during playback does not
-    // change the native state string, so emit the accepted play here.
+    await _acceptPlay(track, initialPosition);
+    return true;
+  }
+
+  Future<void> _acceptPlay(Song track, Duration? initialPosition) async {
+    // A track switch while already playing leaves the Rust state notifier
+    // unchanged, so publish the accepted track explicitly.
     _needsFreshPlay = false;
-    _emitAcceptedTrack(track);
-    await _applyInitialSeekAfterStart();
+    _emitAcceptedTrack(track, position: initialPosition ?? Duration.zero);
+    if (initialPosition != null) {
+      _pendingSeekPosition = null;
+    } else {
+      await _applyInitialSeekAfterStart();
+    }
   }
 
   // ponytail: after a fresh source start (HTTP or path), seek to the desired
@@ -280,8 +352,28 @@ class RustAudioEngine implements AudioEngine {
     _pendingSeekPosition = null;
   }
 
+  /// Closes native output (and any isochronous USB stream) while keeping the
+  /// loaded track and its position. Only a guarded resume can reopen it.
+  Future<bool> releaseOutput() async {
+    if (_loadedTrack == null || isOutputReleased || _releasingOutput) {
+      return false;
+    }
+    _releasingOutput = true;
+    try {
+      final ticket = await _rustAudioService.releaseEngine();
+      if (ticket == null) return false;
+      _pendingSeekPosition ??= _state.position;
+      _needsFreshPlay = true;
+      _idleResumeTicket = ticket;
+      return true;
+    } finally {
+      _releasingOutput = false;
+    }
+  }
+
   @override
   Future<void> pause() async {
+    if (isOutputReleased) return;
     await _safeEnsureInitialized();
     _attachListeners();
     await _rustAudioService.pause();
@@ -289,6 +381,12 @@ class RustAudioEngine implements AudioEngine {
 
   @override
   Future<void> stop() async {
+    if (isOutputReleased) {
+      _loadedTrack = null;
+      _pendingSeekPosition = null;
+      _emit(PlaybackState.empty(_playbackMode));
+      return;
+    }
     await _safeEnsureInitialized();
     _attachListeners();
     await _rustAudioService.stop();
@@ -299,6 +397,11 @@ class RustAudioEngine implements AudioEngine {
     await _safeEnsureInitialized();
     _attachListeners();
     _pendingSeekPosition = position;
+    if (isOutputReleased || _releasingOutput) {
+      // Only stage it: the decoder will start here on the next guarded resume.
+      _emit(_state.copyWith(position: position));
+      return;
+    }
     // A seek between load() and the engine's play acknowledgement is deferred;
     // even reloading the same song must not seek the outgoing play instance.
     if (_needsFreshPlay) return;
