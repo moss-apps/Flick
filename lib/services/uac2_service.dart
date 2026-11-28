@@ -698,6 +698,28 @@ class Uac2Service {
     throwOnVolumeRestoreFailure: throwOnVolumeRestoreFailure,
   );
 
+  @visibleForTesting
+  static Uac2DeviceStatus? connectingStatusForSelection(
+    Uac2DeviceStatus? current,
+    Uac2DeviceInfo device, {
+    required bool reconnecting,
+  }) {
+    if (!reconnecting &&
+        current != null &&
+        current.directUsbRegistered &&
+        current.state != Uac2State.error &&
+        (device.deviceName?.isNotEmpty ?? false) &&
+        device.deviceName == current.device.deviceName &&
+        device.vendorId == current.device.vendorId &&
+        device.productId == current.device.productId &&
+        device.serial == current.device.serial) {
+      // Preparing another format on the same claim keeps the DAC's hardware
+      // volume authority. The native activation and route refresh still run.
+      return null;
+    }
+    return Uac2DeviceStatus(device: device, state: Uac2State.connecting);
+  }
+
   Future<bool> _selectDevice(
     Uac2DeviceInfo device, {
     bool? bitPerfectOverride,
@@ -712,12 +734,12 @@ class Uac2Service {
               : await _resolveConnectedAndroidDevice(device)
           : device;
 
-      _updateStatus(
-        Uac2DeviceStatus(
-          device: resolvedDevice ?? device,
-          state: Uac2State.connecting,
-        ),
+      final connecting = connectingStatusForSelection(
+        _currentDeviceStatus,
+        resolvedDevice ?? device,
+        reconnecting: reconnectIsCurrent != null,
       );
+      if (connecting != null) _updateStatus(connecting);
 
       if (Platform.isAndroid) {
         final androidDevice = resolvedDevice;
