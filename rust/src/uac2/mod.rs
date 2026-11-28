@@ -80,7 +80,10 @@ mod volume_control;
 mod tests;
 
 #[cfg(all(feature = "uac2", target_os = "android"))]
-pub(crate) use android_direct::with_live_usb_reconnect;
+pub(crate) use android_direct::{
+    capture_usb_idle_resume, forget_usb_idle_resume, has_usb_idle_resume, owns_usb_idle_resume,
+    with_live_usb_idle_resume, with_live_usb_reconnect,
+};
 #[cfg(all(feature = "uac2", target_os = "android"))]
 pub use android_direct::{
     android_direct_cached_hardware_mute, android_direct_cached_hardware_volume,

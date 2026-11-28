@@ -1351,9 +1351,11 @@ fn playback_range_for_path(
 }
 
 #[cfg(all(target_os = "android", feature = "uac2"))]
+#[derive(Clone, PartialEq, Eq)]
 enum UsbReconnectTarget {
     Device(String),
-    Cancelled,
+    Idle(u64),
+    Cancelled(Option<u64>),
 }
 
 // Scoped by a serialized PlayerService reconnect request. This also covers
@@ -1366,45 +1368,154 @@ static USB_RECONNECT_TARGET: Lazy<parking_lot::Mutex<Option<UsbReconnectTarget>>
 pub(crate) fn set_android_usb_reconnect_target(device_name: Option<String>, cancel: bool) {
     let mut target = USB_RECONNECT_TARGET.lock();
     if cancel {
-        if target.is_some() {
-            *target = Some(UsbReconnectTarget::Cancelled);
+        if let Some(current) = target.as_ref() {
+            let idle = match current {
+                UsbReconnectTarget::Idle(ticket) => Some(*ticket),
+                UsbReconnectTarget::Cancelled(ticket) => *ticket,
+                UsbReconnectTarget::Device(_) => None,
+            };
+            *target = Some(UsbReconnectTarget::Cancelled(idle));
         }
     } else {
         *target = device_name.map(UsbReconnectTarget::Device);
     }
 }
 
-fn with_usb_reconnect_guard<T>(
-    _handle: &crate::audio::engine::AudioEngineHandle,
-    start: impl FnOnce() -> Result<T, String>,
+#[cfg(all(target_os = "android", feature = "uac2"))]
+pub(crate) fn armed_usb_idle_resume() -> Option<u64> {
+    let target = USB_RECONNECT_TARGET.lock();
+    match target.as_ref() {
+        Some(UsbReconnectTarget::Idle(ticket)) => Some(*ticket),
+        Some(UsbReconnectTarget::Cancelled(ticket)) => *ticket,
+        _ => None,
+    }
+}
+
+/// Release a genuinely paused direct USB output, keeping the registered DAC.
+/// Returns a ticket that cannot be reused after USB registration changes.
+pub fn audio_release_paused_usb_output() -> Result<Option<u64>, String> {
+    #[cfg(all(target_os = "android", feature = "uac2"))]
+    {
+        if !read_audio_engine(|handle| {
+            handle.state() == PlaybackState::Paused && handle.output_runtime().direct_usb_active
+        })
+        .unwrap_or(false)
+        {
+            return Ok(None);
+        }
+        let Some(ticket) = crate::uac2::capture_usb_idle_resume()? else {
+            return Ok(None);
+        };
+        if let Err(error) = ENGINE_MANAGER.shutdown() {
+            if ENGINE_MANAGER.is_rust_initialized() {
+                crate::uac2::forget_usb_idle_resume(ticket);
+                return Err(error);
+            }
+            // The manager detached the handle before teardown failed. Keep
+            // the paused source marked closed instead of resuming a dead handle.
+            log::error!("Direct USB idle output teardown failed: {error}");
+        }
+        return Ok(Some(ticket));
+    }
+    #[cfg(not(all(target_os = "android", feature = "uac2")))]
+    Ok(None)
+}
+
+/// Guard the next play through both engine negotiation and decoder startup.
+pub fn audio_arm_usb_idle_resume(ticket: u64) -> Result<(), String> {
+    #[cfg(all(target_os = "android", feature = "uac2"))]
+    {
+        let mut target = USB_RECONNECT_TARGET.lock();
+        if target.is_some() || !crate::uac2::owns_usb_idle_resume(ticket) {
+            return Err("The paused USB DAC is no longer available".into());
+        }
+        *target = Some(UsbReconnectTarget::Idle(ticket));
+        return Ok(());
+    }
+    #[cfg(not(all(target_os = "android", feature = "uac2")))]
+    {
+        let _ = ticket;
+        Err("Direct USB idle resume is unavailable".into())
+    }
+}
+
+/// Close a failed reopen without releasing the DAC. A successful play retires
+/// the ticket; cancellation remains armed until any provisional output closes.
+pub fn audio_finish_usb_idle_resume(ticket: u64, started: bool) -> Result<(), String> {
+    #[cfg(all(target_os = "android", feature = "uac2"))]
+    {
+        if armed_usb_idle_resume() != Some(ticket) {
+            return Ok(());
+        }
+        let result = if started {
+            crate::uac2::forget_usb_idle_resume(ticket);
+            Ok(())
+        } else {
+            ENGINE_MANAGER.shutdown()
+        };
+        set_android_usb_reconnect_target(None, false);
+        return result;
+    }
+    #[cfg(not(all(target_os = "android", feature = "uac2")))]
+    {
+        let _ = (ticket, started);
+        Ok(())
+    }
+}
+
+fn start_guarded_play<T>(
+    start: impl FnOnce(&crate::audio::engine::AudioEngineHandle) -> Result<T, String>,
 ) -> Result<T, String> {
     #[cfg(all(target_os = "android", feature = "uac2"))]
     {
-        let target = USB_RECONNECT_TARGET.lock();
+        let target = USB_RECONNECT_TARGET.lock().clone();
+        // USB readback must finish before holding either the reconnect target
+        // or the engine manager lock, which Android also reads for diagnostics.
+        let start_if_current = || {
+            with_audio_engine(|handle| {
+                let current = USB_RECONNECT_TARGET.lock();
+                if *current != target {
+                    return Err("Direct USB playback request was cancelled".into());
+                }
+                if target.is_some() && !handle.output_runtime().direct_usb_active {
+                    return Err("Direct USB resume refused a managed output".into());
+                }
+                start(handle)
+            })
+        };
         return match target.as_ref() {
-            None => start(),
-            Some(UsbReconnectTarget::Cancelled) => {
+            None => start_if_current(),
+            Some(UsbReconnectTarget::Cancelled(_)) => {
                 Err("Direct USB reconnect was cancelled".into())
             }
             Some(UsbReconnectTarget::Device(device)) => {
-                if !_handle.output_runtime().direct_usb_active {
-                    return Err("Direct USB reconnect refused a managed output".into());
-                }
-                crate::uac2::with_live_usb_reconnect(device, start)
+                crate::uac2::with_live_usb_reconnect(device, start_if_current)
+            }
+            Some(UsbReconnectTarget::Idle(ticket)) => {
+                crate::uac2::with_live_usb_idle_resume(*ticket, start_if_current)
             }
         };
     }
     #[cfg(not(all(target_os = "android", feature = "uac2")))]
-    start()
+    with_audio_engine(start)
 }
 
-/// Play an audio file, optionally restricted to a CUE track.
+fn validate_play_position(position_secs: Option<f64>) -> Result<Option<f64>, String> {
+    if position_secs.is_some_and(|position| !position.is_finite() || position < 0.0) {
+        return Err("Playback position must be finite and non-negative".into());
+    }
+    Ok(position_secs)
+}
+
+/// Play an audio file from an optional position relative to its CUE range.
 pub fn audio_play(
     path: String,
     start_secs: Option<f64>,
     end_secs: Option<f64>,
+    position_secs: Option<f64>,
 ) -> Result<SourceIdentity, String> {
     crate::assert_android_debug_logging();
+    let position_secs = validate_play_position(position_secs)?;
     let path = PathBuf::from(&path);
     let range = playback_range_for_path(&path, start_secs, end_secs)?;
     match detect_file_type(&path) {
@@ -1488,15 +1599,18 @@ pub fn audio_play(
                     output_channels = with_audio_engine(|handle| Ok(handle.channels()))?;
                 }
             }
-            let (source, thread) =
-                DsdDecoderThread::spawn(path, effective_mode, output_sample_rate, output_channels)
-                    .map_err(|e| format!("Failed to decode DSD: {}", e))?;
+            let (source, thread) = DsdDecoderThread::spawn_with_seek(
+                path,
+                effective_mode,
+                output_sample_rate,
+                output_channels,
+                position_secs,
+            )
+            .map_err(|e| format!("Failed to decode DSD: {}", e))?;
             let is_raw = matches!(effective_mode, DsdOutputMode::Dop | DsdOutputMode::Native);
-            let completion = with_audio_engine(|handle| {
-                with_usb_reconnect_guard(handle, || {
-                    handle.set_dop_override(is_raw)?;
-                    handle.play_prepared(source, DecoderHandle::Dsd(thread))
-                })
+            let completion = start_guarded_play(|handle| {
+                handle.set_dop_override(is_raw)?;
+                handle.play_prepared(source, DecoderHandle::Dsd(thread))
             })?;
             wait_for_play_start(completion)
         }
@@ -1508,13 +1622,11 @@ pub fn audio_play(
             let (output_sample_rate, output_channels) =
                 with_audio_engine(|handle| Ok((handle.sample_rate(), handle.channels())))?;
             let (source, handle) =
-                WavpackDecoderThread::spawn(path, output_sample_rate, output_channels)
+                WavpackDecoderThread::spawn_with_seek(path, output_sample_rate, output_channels, position_secs)
                     .map_err(|e| format!("Failed to decode WavPack: {}", e))?;
-            with_audio_engine(|engine| {
-                with_usb_reconnect_guard(engine, || {
-                    engine.set_dop_override(false)?;
-                    engine.play_prepared(source, handle)
-                })
+            start_guarded_play(|engine| {
+                engine.set_dop_override(false)?;
+                engine.play_prepared(source, handle)
             })
             .and_then(wait_for_play_start)
         }
@@ -1544,15 +1656,13 @@ pub fn audio_play(
                 probe_result,
                 output_sample_rate,
                 output_channels,
-                None,
+                position_secs,
                 range,
             )
             .map_err(|error| format!("Failed to decode {}: {}", path.display(), error))?;
-            with_audio_engine(|handle| {
-                with_usb_reconnect_guard(handle, || {
-                    handle.set_dop_override(false)?;
-                    handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
-                })
+            start_guarded_play(|handle| {
+                handle.set_dop_override(false)?;
+                handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
             })
             .and_then(wait_for_play_start)
         }
@@ -1572,6 +1682,12 @@ pub fn audio_queue_next(
     let path = PathBuf::from(path);
     let range = playback_range_for_path(&path, start_secs, end_secs)?;
     if !audio_is_initialized() {
+        // A gapless request dispatched just before idle teardown must not
+        // recreate the output on its own.
+        #[cfg(all(target_os = "android", feature = "uac2"))]
+        if crate::uac2::has_usb_idle_resume() {
+            return Ok(());
+        }
         match detect_file_type(&path) {
             crate::audio::decoder_handle::FileType::Dsd => {
                 let requested_mode = current_dsd_output_mode();
@@ -1773,7 +1889,9 @@ pub fn audio_play_from_http(
     headers: HashMap<String, String>,
     start_secs: Option<f64>,
     end_secs: Option<f64>,
+    position_secs: Option<f64>,
 ) -> Result<SourceIdentity, String> {
+    let position_secs = validate_play_position(position_secs)?;
     let range = PlaybackRange {
         start_secs: start_secs.unwrap_or(0.0),
         end_secs,
@@ -1797,15 +1915,13 @@ pub fn audio_play_from_http(
         probe_result,
         output_sample_rate,
         output_channels,
-        None,
+        position_secs,
         range,
     )
     .map_err(|e| format!("Failed to decode HTTP stream: {}", e))?;
-    with_audio_engine(|handle| {
-        with_usb_reconnect_guard(handle, || {
-            handle.set_dop_override(false)?;
-            handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
-        })
+    start_guarded_play(|handle| {
+        handle.set_dop_override(false)?;
+        handle.play_prepared(source, DecoderHandle::Symphonia(decoder_thread))
     })
     .and_then(wait_for_play_start)
 }
@@ -1826,6 +1942,10 @@ pub fn audio_queue_next_from_http(
     }
     .validate()?;
     if !audio_is_initialized() {
+        #[cfg(all(target_os = "android", feature = "uac2"))]
+        if crate::uac2::has_usb_idle_resume() {
+            return Ok(());
+        }
         clear_dsd_track_rate();
         let probe_result = probe_http(&url, headers)
             .map_err(|e| format!("Failed to probe HTTP stream: {}", e))?;
